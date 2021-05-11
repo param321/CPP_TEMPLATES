@@ -1,47 +1,65 @@
-vector <vector<pair<ll,ll>>> adj(N);
-const ll MAX = 25;
-ll parent[N][MAX];
+vector<ll> parent, depth, heavy, head, pos;
+ll cur_pos;
 
-void HLD(int v, int par) {
-    int heavyChild = -1, heavySize = 0,heavyEdgeWeight = -1;
-    chain[v] = chainId;
-    position[v] = pos++;
-    for(auto p : adj[v]) {
-        if(p.F!=par) {
-            if(subtree_size[p.F] > heavySize) {
-                heavySize = subtree_size[p.F];
-                heavyChild = p.F;
-                heavyEdgeWeight = p.S;
+ll dfs(ll v) {
+    ll size = 1;
+    ll max_c_size = 0;
+    for (ll c : adj[v]) {
+        if (c != parent[v]) {
+            parent[c] = v, depth[c] = depth[v] + 1;
+            ll c_size = dfs(c);
+            size += c_size;
+            if (c_size > max_c_size){
+                max_c_size = c_size;
+                heavy[v] = c;
             }
         }
     }
-    if(heavyChild!=-1) {
-        arr[pos] = heavyEdgeWeight;
-        HLD(heavyChild, v);
+    return size;
+}
+
+ll decompose(ll v,ll h){
+    head[v]=h;
+    pos[v] = cur_pos++;
+    if(heavy[v]!=-1){
+        decompose(heavy[v],h);
     }
-    for(auto p : adj[v]) {
-        if(p.F != par && p.F != heavyChild) {
-            chainId++;
-            chainHead[chainId] = p.F;
-            arr[pos] = p.S;
-            HLD(p.F, v);
+    for(ll c:adj[v]){
+        if(c!=parent[v]&&c!=heavy[v]){
+            decompose(c,c);
         }
     }
 }
 
-void dfs(int v, int par, int l) {
-    parent[v][0] = par;
-    for(int i=1;i<=MAX;++i) {
-        if(parent[v][i-1]!=0) {
-            parent[v][i] = parent[parent[v][i-1]][i-1];
+void init() {
+    parent = vector<ll>(N);
+    depth = vector<ll>(N);
+    heavy = vector<ll>(N, -1);
+    head = vector<ll>(N);
+    pos = vector<ll>(N);
+    cur_pos = 0;
+
+    dfs(0);
+    decompose(0, 0);
+}
+
+ll query(ll a, ll b) {
+    ll res = 0;
+    for(;head[a]!=head[b];b=parent[head[b]]){
+        if(depth[head[a]]>depth[head[b]]){
+            swap(a,b);
         }
+        ll cur_heavy_path_max = segment_tree_query(pos[head[b]], pos[b]);
+        res = max(res, cur_heavy_path_max);
     }
-    subtree_size[v] += 1;
-    level[v] = l;
-    for(auto p : adj[v]) {
-        if(p.F!=par) {
-            dfs(p.F, v, l+1);
-            subtree_size[v]+=subtree_size[p.F];
-        }
+    if (depth[a] > depth[b]){
+        swap(a, b);
     }
+    ll last_heavy_path_max = segment_tree_query(pos[a], pos[b]);
+    res = max(res, last_heavy_path_max);
+    return res;
+}
+
+void update(ll i,ll w) { 
+   segtree_tree_update(pos[i] , w);
 }
